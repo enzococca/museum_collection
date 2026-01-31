@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+/* Museum-inspired color theme */
+@theme {
+  /* Primary - warm terracotta */
+  --color-primary-50: #fef7f0;
+  --color-primary-100: #fdecd8;
+  --color-primary-200: #fad6b0;
+  --color-primary-300: #f6b97e;
+  --color-primary-400: #f19249;
+  --color-primary-500: #ed7426;
+  --color-primary-600: #de5a1c;
+  --color-primary-700: #b84419;
+  --color-primary-800: #93371c;
+  --color-primary-900: #772f1a;
+  --color-primary-950: #40160b;
+
+  /* Museum brown */
+  --color-museum-50: #faf6f3;
+  --color-museum-100: #f3ebe3;
+  --color-museum-200: #e6d5c6;
+  --color-museum-300: #d5b9a2;
+  --color-museum-400: #c1977a;
+  --color-museum-500: #b37d5e;
+  --color-museum-600: #a66a51;
+  --color-museum-700: #8a5544;
+  --color-museum-800: #71473c;
+  --color-museum-900: #5d3c33;
+  --color-museum-950: #311e19;
+
+  /* Bronze */
+  --color-bronze-50: #f9f7f5;
+  --color-bronze-100: #f1ede8;
+  --color-bronze-200: #e2d9ce;
+  --color-bronze-300: #cfc0ad;
+  --color-bronze-400: #b9a189;
+  --color-bronze-500: #a9896d;
+  --color-bronze-600: #9c7861;
+  --color-bronze-700: #826252;
+  --color-bronze-800: #6a5146;
+  --color-bronze-900: #57443b;
+  --color-bronze-950: #2e231e;
+
+  /* Custom shadows */
+  --shadow-museum: 0 4px 20px -2px rgba(119, 47, 26, 0.15);
+  --shadow-museum-lg: 0 10px 40px -3px rgba(119, 47, 26, 0.2);
+
+  /* Fonts */
+  --font-display: 'Georgia', serif;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-bronze-900);
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-museum-100);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-museum-300);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-museum-400);
+}
+
+/* Selection color */
+::selection {
+  background: var(--color-primary-200);
+  color: var(--color-primary-900);
+}
+
+#root {
+  min-height: 100vh;
+}
