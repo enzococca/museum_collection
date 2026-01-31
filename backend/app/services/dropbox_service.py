@@ -11,13 +11,26 @@ class DropboxService:
     def __init__(self):
         self.use_local = current_app.config.get('USE_LOCAL_MEDIA', False)
         self.local_path = current_app.config.get('LOCAL_MEDIA_PATH')
+        self.dbx = None
 
-        # Only initialize Dropbox if we have a token and not using local
-        token = current_app.config.get('DROPBOX_ACCESS_TOKEN')
-        if token and not self.use_local:
-            self.dbx = dropbox.Dropbox(token)
-        else:
-            self.dbx = None
+        if not self.use_local:
+            # Try refresh token first (recommended - auto-renews)
+            refresh_token = current_app.config.get('DROPBOX_REFRESH_TOKEN')
+            app_key = current_app.config.get('DROPBOX_APP_KEY')
+            app_secret = current_app.config.get('DROPBOX_APP_SECRET')
+
+            if refresh_token and app_key and app_secret:
+                # Use OAuth2 with refresh token - automatically renews access token
+                self.dbx = dropbox.Dropbox(
+                    oauth2_refresh_token=refresh_token,
+                    app_key=app_key,
+                    app_secret=app_secret
+                )
+            else:
+                # Fall back to access token (expires, not recommended for production)
+                access_token = current_app.config.get('DROPBOX_ACCESS_TOKEN')
+                if access_token:
+                    self.dbx = dropbox.Dropbox(access_token)
 
         self.base_path = current_app.config.get(
             'DROPBOX_BASE_PATH',
