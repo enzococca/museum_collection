@@ -279,8 +279,8 @@ export function StatisticsPage() {
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: number, name: string, props: any) =>
-                    [`${value} (${props.payload.percentage}%)`, 'Count']
+                  formatter={(value, _name, props) =>
+                    [`${value} (${(props as any).payload?.percentage || 0}%)`, 'Count']
                   }
                 />
                 <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
@@ -305,7 +305,7 @@ export function StatisticsPage() {
                   outerRadius={100}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, percentage }) => `${name} (${percentage}%)`}
+                  label={({ name, percent }: { name: string; percent: number }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                   labelLine={true}
                 >
                   {catalogStats.object_types.slice(0, 8).map((_, index) => (

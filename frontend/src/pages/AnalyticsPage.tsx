@@ -229,7 +229,7 @@ export function AnalyticsPage() {
                         outerRadius={100}
                         dataKey="count"
                         nameKey="value"
-                        label={({ value, percentage }) => `${value} (${percentage}%)`}
+                        label={({ name, percent }: { name: string; percent: number }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                       >
                         {report.distributions.material.distribution.slice(0, 8).map((_, idx) => (
                           <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
@@ -255,7 +255,7 @@ export function AnalyticsPage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis type="number" />
                       <YAxis dataKey="value" type="category" width={120} tick={{ fontSize: 11 }} />
-                      <Tooltip formatter={(value: number) => [value, 'Count']} />
+                      <Tooltip formatter={(value) => [value, 'Count']} />
                       <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
