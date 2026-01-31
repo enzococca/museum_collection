@@ -1,2 +1,20 @@
-# Root requirements - points to backend
--r backend/requirements.txt
+dropbox>=11.36.2
+flask>=3.0.0
+flask-cors>=4.0.0
+flask-jwt-extended>=4.6.0
+flask-mail>=0.10.0
+flask-marshmallow>=0.15.0
+flask-migrate>=4.0.5
+flask-sqlalchemy>=3.1.1
+gunicorn>=21.2.0
+marshmallow-sqlalchemy>=0.29.0
+openpyxl>=3.1.2
+pandas>=2.2.0
+pillow>=10.4.0
+psycopg2-binary>=2.9.9
+python-docx>=1.0.0
+python-dotenv>=1.0.0
+reportlab>=4.0.7
+scipy>=1.11.0
+werkzeug>=3.0.1
+xlsxwriter>=3.2.0
