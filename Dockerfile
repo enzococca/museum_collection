@@ -16,3 +16,4 @@ EXPOSE $PORT
 
 # Start gunicorn
 CMD gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 2
+# Force rebuild Sat Jan 31 21:52:36 CET 2026
