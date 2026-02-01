@@ -1,4 +1,4 @@
-import { api } from './client';
+import apiClient from './client';
 
 export interface ThesaurusTerm {
   id: string;
@@ -22,7 +22,7 @@ export interface DropdownOption {
 export const thesaurusApi = {
   // Get all categories
   getCategories: async (): Promise<string[]> => {
-    const response = await api.get('/thesaurus/categories');
+    const response = await apiClient.get('/thesaurus/categories');
     return response.data;
   },
 
@@ -32,48 +32,48 @@ export const thesaurusApi = {
     if (category) params.append('category', category);
     params.append('active_only', String(activeOnly));
 
-    const response = await api.get(`/thesaurus/?${params}`);
+    const response = await apiClient.get(`/thesaurus/?${params}`);
     return response.data;
   },
 
   // Get terms by category (formatted for dropdowns)
   getDropdownOptions: async (category: string): Promise<DropdownOption[]> => {
-    const response = await api.get(`/thesaurus/by-category/${category}`);
+    const response = await apiClient.get(`/thesaurus/by-category/${category}`);
     return response.data;
   },
 
   // Get a single term
   getTerm: async (id: string): Promise<ThesaurusTerm> => {
-    const response = await api.get(`/thesaurus/${id}`);
+    const response = await apiClient.get(`/thesaurus/${id}`);
     return response.data;
   },
 
   // Create a new term (admin only)
   createTerm: async (data: Partial<ThesaurusTerm>): Promise<ThesaurusTerm> => {
-    const response = await api.post('/thesaurus/', data);
+    const response = await apiClient.post('/thesaurus/', data);
     return response.data;
   },
 
   // Update a term (admin only)
   updateTerm: async (id: string, data: Partial<ThesaurusTerm>): Promise<ThesaurusTerm> => {
-    const response = await api.put(`/thesaurus/${id}`, data);
+    const response = await apiClient.put(`/thesaurus/${id}`, data);
     return response.data;
   },
 
   // Delete a term (admin only)
   deleteTerm: async (id: string): Promise<void> => {
-    await api.delete(`/thesaurus/${id}`);
+    await apiClient.delete(`/thesaurus/${id}`);
   },
 
   // Bulk create terms (admin only)
   bulkCreate: async (terms: Partial<ThesaurusTerm>[]): Promise<{ created: number; errors: string[] }> => {
-    const response = await api.post('/thesaurus/bulk', terms);
+    const response = await apiClient.post('/thesaurus/bulk', terms);
     return response.data;
   },
 
   // Sync from existing data (admin only)
   syncFromData: async (): Promise<{ message: string; added: Record<string, number> }> => {
-    const response = await api.post('/thesaurus/sync-from-data');
+    const response = await apiClient.post('/thesaurus/sync-from-data');
     return response.data;
   },
 };
