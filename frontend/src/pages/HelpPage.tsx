@@ -16,6 +16,7 @@ import {
   Users,
   HelpCircle,
   LucideIcon,
+  BookOpen,
 } from 'lucide-react';
 
 // Import help content components
@@ -32,6 +33,7 @@ import {
   AnnotationsHelp,
   ExportHelp,
   UserManagementHelp,
+  ThesaurusHelp,
 } from '../components/help/content';
 
 type RoleFilter = 'all' | 'viewer' | 'editor' | 'admin';
@@ -62,6 +64,7 @@ const helpSections: HelpSectionConfig[] = [
   // Admin features (admin only)
   { id: 'export', title: 'Export Data', icon: Download, role: 'admin', component: ExportHelp },
   { id: 'users', title: 'User Management', icon: Users, role: 'admin', component: UserManagementHelp },
+  { id: 'thesaurus', title: 'Thesaurus', icon: BookOpen, role: 'admin', component: ThesaurusHelp },
 ];
 
 export function HelpPage() {

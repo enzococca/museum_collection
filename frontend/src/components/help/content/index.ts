@@ -10,3 +10,4 @@ export { ArtifactEditHelp } from './ArtifactEditHelp';
 export { AnnotationsHelp } from './AnnotationsHelp';
 export { ExportHelp } from './ExportHelp';
 export { UserManagementHelp } from './UserManagementHelp';
+export { ThesaurusHelp } from './ThesaurusHelp';

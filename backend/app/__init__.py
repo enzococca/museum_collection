@@ -36,6 +36,7 @@ def create_app(config_name=None):
     from .api.stats import stats_bp
     from .api.submissions import submissions_bp
     from .api.analytics import analytics_bp
+    from .api.thesaurus import bp as thesaurus_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
@@ -47,6 +48,7 @@ def create_app(config_name=None):
     app.register_blueprint(stats_bp, url_prefix='/api/stats')
     app.register_blueprint(submissions_bp, url_prefix='/api/submissions')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(thesaurus_bp, url_prefix='/api/thesaurus')
 
     # Health check endpoint
     @app.route('/api/health')

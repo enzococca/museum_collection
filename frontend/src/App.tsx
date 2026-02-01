@@ -19,6 +19,7 @@ import { UsersPage } from './pages/UsersPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
 import { PublicSubmissionPage } from './pages/PublicSubmissionPage';
 import { HelpPage } from './pages/HelpPage';
+import { ThesaurusPage } from './pages/ThesaurusPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -95,6 +96,14 @@ function App() {
                 element={
                   <ProtectedRoute requiredRoles={['admin']}>
                     <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/thesaurus"
+                element={
+                  <ProtectedRoute requiredRoles={['admin']}>
+                    <ThesaurusPage />
                   </ProtectedRoute>
                 }
               />
