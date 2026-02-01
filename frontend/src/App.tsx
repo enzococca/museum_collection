@@ -18,6 +18,7 @@ import { ExportPage } from './pages/ExportPage';
 import { UsersPage } from './pages/UsersPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
 import { PublicSubmissionPage } from './pages/PublicSubmissionPage';
+import { HelpPage } from './pages/HelpPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ function App() {
               <Route path="/search" element={<SearchPage />} />
               <Route path="/statistics" element={<StatisticsPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/help" element={<HelpPage />} />
 
               {/* Editor routes */}
               <Route

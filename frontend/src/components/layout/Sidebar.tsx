@@ -12,6 +12,7 @@ import {
   Inbox,
   X,
   Landmark,
+  HelpCircle,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -32,6 +33,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { to: '/statistics', icon: BarChart3, label: 'Statistics' },
     { to: '/analytics', icon: GitCompare, label: 'Analytics' },
     ...(isAdmin() ? [{ to: '/users', icon: Users, label: 'Users' }] : []),
+    { to: '/help', icon: HelpCircle, label: 'Help' },
   ];
 
   return (
