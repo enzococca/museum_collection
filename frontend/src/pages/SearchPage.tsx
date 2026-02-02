@@ -162,6 +162,7 @@ export function SearchPage() {
                         src={`${import.meta.env.VITE_API_URL}/media/${artifact.primary_media.id}/thumbnail`}
                         alt={artifact.object_type || 'Artifact'}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <ImageIcon className="w-12 h-12 text-gray-300" />

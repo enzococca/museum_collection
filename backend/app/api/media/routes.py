@@ -1,11 +1,39 @@
 import os
-from flask import request, jsonify, current_app, send_file, Response
+import hashlib
+from flask import request, jsonify, current_app, send_file, Response, make_response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from . import media_bp
 from ...models import Media, Artifact
 from ...extensions import db
 from ...services.dropbox_service import DropboxService
 from ..auth.decorators import editor_required
+
+# Simple in-memory cache for thumbnails
+_thumbnail_cache = {}
+_CACHE_MAX_SIZE = 500  # Max number of cached thumbnails
+_CACHE_TTL = 3600  # 1 hour in seconds
+
+
+def _get_cached_thumbnail(media_id: str) -> bytes | None:
+    """Get thumbnail from cache if exists and not expired."""
+    import time
+    if media_id in _thumbnail_cache:
+        data, timestamp = _thumbnail_cache[media_id]
+        if time.time() - timestamp < _CACHE_TTL:
+            return data
+        else:
+            del _thumbnail_cache[media_id]
+    return None
+
+
+def _set_cached_thumbnail(media_id: str, data: bytes):
+    """Store thumbnail in cache, evicting old entries if needed."""
+    import time
+    # Simple eviction: remove oldest if cache is full
+    if len(_thumbnail_cache) >= _CACHE_MAX_SIZE:
+        oldest_key = min(_thumbnail_cache.keys(), key=lambda k: _thumbnail_cache[k][1])
+        del _thumbnail_cache[oldest_key]
+    _thumbnail_cache[media_id] = (data, time.time())
 
 
 @media_bp.route('/upload', methods=['POST'])
@@ -122,19 +150,20 @@ def get_media_image(media_id):
         return jsonify({'error': 'Media not found'}), 404
 
     try:
+        file_data = None
+
         # Check if using local media storage
         if current_app.config.get('USE_LOCAL_MEDIA'):
             local_path = current_app.config.get('LOCAL_MEDIA_PATH')
             if local_path and media.dropbox_path:
-                # Convert dropbox path to local path
-                # /NILGIRI 2025/.../file.jpg -> local_path/file.jpg
                 filename = os.path.basename(media.dropbox_path)
-                # Try to preserve folder structure
                 relative_path = media.dropbox_path.split('PHOTOGRAPHS_CHENNAI-MUSEUM/')[-1] if 'PHOTOGRAPHS_CHENNAI-MUSEUM/' in media.dropbox_path else filename
                 file_path = os.path.join(local_path, relative_path)
 
                 if os.path.exists(file_path):
-                    return send_file(file_path)
+                    response = make_response(send_file(file_path))
+                    response.headers['Cache-Control'] = 'public, max-age=86400'
+                    return response
 
         # Fall back to Dropbox
         dropbox_service = DropboxService()
@@ -149,7 +178,13 @@ def get_media_image(media_id):
         }
         mime_type = mime_types.get(ext, 'image/jpeg')
 
-        return Response(file_data, mimetype=mime_type)
+        # Create response with cache headers
+        response = make_response(file_data)
+        response.headers['Content-Type'] = mime_type
+        response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
+        response.headers['ETag'] = hashlib.md5(media_id.encode()).hexdigest()
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'Get image error: {str(e)}')
@@ -159,34 +194,49 @@ def get_media_image(media_id):
 @media_bp.route('/<media_id>/thumbnail', methods=['GET'])
 @jwt_required(optional=True)
 def get_media_thumbnail(media_id):
-    """Serve media thumbnail directly"""
+    """Serve media thumbnail directly with caching"""
     media = Media.query.get(media_id)
 
     if not media:
         return jsonify({'error': 'Media not found'}), 404
 
     try:
-        # Check if using local media storage
-        if current_app.config.get('USE_LOCAL_MEDIA'):
-            local_path = current_app.config.get('LOCAL_MEDIA_PATH')
-            if local_path and media.dropbox_path:
-                filename = os.path.basename(media.dropbox_path)
-                relative_path = media.dropbox_path.split('PHOTOGRAPHS_CHENNAI-MUSEUM/')[-1] if 'PHOTOGRAPHS_CHENNAI-MUSEUM/' in media.dropbox_path else filename
-                file_path = os.path.join(local_path, relative_path)
+        file_data = None
 
-                if os.path.exists(file_path):
-                    # For local, serve same file (could add thumbnail generation)
-                    return send_file(file_path)
+        # Check memory cache first
+        file_data = _get_cached_thumbnail(media_id)
 
-        # Fall back to Dropbox thumbnail or main image
-        dropbox_service = DropboxService()
+        if not file_data:
+            # Check if using local media storage
+            if current_app.config.get('USE_LOCAL_MEDIA'):
+                local_path = current_app.config.get('LOCAL_MEDIA_PATH')
+                if local_path and media.dropbox_path:
+                    filename = os.path.basename(media.dropbox_path)
+                    relative_path = media.dropbox_path.split('PHOTOGRAPHS_CHENNAI-MUSEUM/')[-1] if 'PHOTOGRAPHS_CHENNAI-MUSEUM/' in media.dropbox_path else filename
+                    file_path = os.path.join(local_path, relative_path)
 
-        if media.thumbnail_path:
-            file_data = dropbox_service.download_file(media.thumbnail_path)
-        else:
-            file_data = dropbox_service.download_file(media.dropbox_path)
+                    if os.path.exists(file_path):
+                        with open(file_path, 'rb') as f:
+                            file_data = f.read()
 
-        return Response(file_data, mimetype='image/jpeg')
+            # Fall back to Dropbox thumbnail or main image
+            if not file_data:
+                dropbox_service = DropboxService()
+                if media.thumbnail_path:
+                    file_data = dropbox_service.download_file(media.thumbnail_path)
+                else:
+                    file_data = dropbox_service.download_file(media.dropbox_path)
+
+            # Store in cache
+            _set_cached_thumbnail(media_id, file_data)
+
+        # Create response with cache headers
+        response = make_response(file_data)
+        response.headers['Content-Type'] = 'image/jpeg'
+        response.headers['Cache-Control'] = 'public, max-age=86400'  # Cache for 24 hours
+        response.headers['ETag'] = hashlib.md5(media_id.encode()).hexdigest()
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'Get thumbnail error: {str(e)}')

@@ -205,6 +205,7 @@ export function ArtifactEditPage() {
                     src={`${import.meta.env.VITE_API_URL}/media/${m.id}/thumbnail`}
                     alt={m.original_filename}
                     className="w-full aspect-square object-cover rounded-lg"
+                    loading="lazy"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex flex-col items-center justify-center p-2">
                     <span className="text-white text-xs text-center">{m.original_filename}</span>
