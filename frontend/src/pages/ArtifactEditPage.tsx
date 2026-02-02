@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useArtifact, useUpdateArtifact } from '../hooks/useArtifacts';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { Button } from '../components/common/Button';
+import { ThesaurusSelect } from '../components/common/ThesaurusSelect';
 import { ArrowLeft, Save, Upload, X, Image as ImageIcon, Folder, FolderPlus, Check } from 'lucide-react';
 import { mediaApi } from '../api/media';
 
@@ -351,42 +352,30 @@ export function ArtifactEditPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-lg font-semibold mb-4">Classification</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Object Type
-              </label>
-              <input
-                type="text"
-                name="object_type"
-                value={formData.object_type}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Material
-              </label>
-              <input
-                type="text"
-                name="material"
-                value={formData.material}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Technique
-              </label>
-              <input
-                type="text"
-                name="technique"
-                value={formData.technique}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
+            <ThesaurusSelect
+              category="object_type"
+              name="object_type"
+              value={formData.object_type}
+              onChange={handleChange}
+              label="Object Type"
+              placeholder="Select object type..."
+            />
+            <ThesaurusSelect
+              category="material"
+              name="material"
+              value={formData.material}
+              onChange={handleChange}
+              label="Material"
+              placeholder="Select material..."
+            />
+            <ThesaurusSelect
+              category="technique"
+              name="technique"
+              value={formData.technique}
+              onChange={handleChange}
+              label="Technique"
+              placeholder="Select technique..."
+            />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Acquisition Details
@@ -505,18 +494,14 @@ export function ArtifactEditPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chronology
-              </label>
-              <input
-                type="text"
-                name="chronology"
-                value={formData.chronology}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
+            <ThesaurusSelect
+              category="chronology"
+              name="chronology"
+              value={formData.chronology}
+              onChange={handleChange}
+              label="Chronology"
+              placeholder="Select chronology..."
+            />
           </div>
         </div>
 
