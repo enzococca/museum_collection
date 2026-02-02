@@ -37,8 +37,8 @@ export const thesaurusApi = {
   },
 
   // Get terms by category (formatted for dropdowns)
-  getDropdownOptions: async (category: string): Promise<DropdownOption[]> => {
-    const response = await apiClient.get(`/thesaurus/by-category/${category}`);
+  getDropdownOptions: async (category: string, activeOnly = false): Promise<DropdownOption[]> => {
+    const response = await apiClient.get(`/thesaurus/by-category/${category}?active_only=${activeOnly}`);
     return response.data;
   },
 
