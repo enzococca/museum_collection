@@ -26,6 +26,7 @@ export function ThesaurusSelect({
 }: ThesaurusSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
+  const [searchTerm, setSearchTerm] = useState(''); // Separate search term from display value
   const [filteredOptions, setFilteredOptions] = useState<DropdownOption[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,21 +42,21 @@ export function ThesaurusSelect({
     setInputValue(value);
   }, [value]);
 
-  // Filter options based on input
+  // Filter options based on search term (not display value)
   useEffect(() => {
-    if (!inputValue) {
+    if (!searchTerm) {
       setFilteredOptions(options);
     } else {
-      const searchTerm = inputValue.toLowerCase();
+      const term = searchTerm.toLowerCase();
       setFilteredOptions(
         options.filter(
           (opt) =>
-            opt.label.toLowerCase().includes(searchTerm) ||
-            opt.value.toLowerCase().includes(searchTerm)
+            opt.label.toLowerCase().includes(term) ||
+            opt.value.toLowerCase().includes(term)
         )
       );
     }
-  }, [inputValue, options]);
+  }, [searchTerm, options]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -69,7 +70,9 @@ export function ThesaurusSelect({
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    const newValue = e.target.value;
+    setInputValue(newValue);
+    setSearchTerm(newValue); // Update search filter as user types
     setIsOpen(true);
 
     if (allowCustom) {
@@ -77,7 +80,7 @@ export function ThesaurusSelect({
       const syntheticEvent = {
         target: {
           name,
-          value: e.target.value,
+          value: newValue,
           type: 'text',
         },
       } as React.ChangeEvent<HTMLInputElement>;
@@ -85,8 +88,14 @@ export function ThesaurusSelect({
     }
   };
 
+  const handleOpenDropdown = () => {
+    setSearchTerm(''); // Reset search to show all options
+    setIsOpen(true);
+  };
+
   const handleSelectOption = (option: DropdownOption) => {
     setInputValue(option.value);
+    setSearchTerm(''); // Reset search
     setIsOpen(false);
 
     // Create a synthetic event to update the parent form
@@ -102,6 +111,7 @@ export function ThesaurusSelect({
 
   const handleClear = () => {
     setInputValue('');
+    setSearchTerm('');
     const syntheticEvent = {
       target: {
         name,
@@ -128,7 +138,7 @@ export function ThesaurusSelect({
             name={name}
             value={inputValue}
             onChange={handleInputChange}
-            onFocus={() => setIsOpen(true)}
+            onFocus={handleOpenDropdown}
             placeholder={isLoading ? 'Loading...' : placeholder}
             className="w-full px-3 py-2 pr-16 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             autoComplete="off"
@@ -145,7 +155,7 @@ export function ThesaurusSelect({
             )}
             <button
               type="button"
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={() => isOpen ? setIsOpen(false) : handleOpenDropdown()}
               className="p-1 text-gray-400 hover:text-gray-600"
             >
               <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
