@@ -116,15 +116,19 @@ def _parse_on_display(val) -> bool:
 def _normalise_accession(raw) -> str | None:
     """Normalise the Mantegazza Excel accession number to the catalog format.
 
-    - numeric-only entries get the ``I0`` prefix (so ``2720`` → ``I02720``),
-    - the ``(E0?)XXXX`` placeholder becomes ``E0XXXX``,
+    Every Mantegazza record ends up with the ``I0`` prefix:
+    - numeric-only entries are prefixed (``2720`` → ``I02720``),
+    - the ``(E0?)XXXX`` placeholder becomes ``I0XXXX``,
+    - a bare ``E0XXXX`` is rewritten as ``I0XXXX`` to keep the series uniform,
     - everything else is returned trimmed as-is.
     """
     s = _cell(raw)
     if not s:
         return None
     if s.startswith("(E0?)"):
-        return "E0" + s[len("(E0?)"):]
+        return "I0" + s[len("(E0?)"):]
+    if s[:2].upper() == "E0":
+        return "I0" + s[2:]
     if s[:1].isdigit():
         return "I0" + s
     return s
