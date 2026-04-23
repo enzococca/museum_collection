@@ -113,6 +113,23 @@ def _parse_on_display(val) -> bool:
     return str(val).strip().lower() in ("sì", "si", "yes", "y", "true", "1", "x")
 
 
+def _normalise_accession(raw) -> str | None:
+    """Normalise the Mantegazza Excel accession number to the catalog format.
+
+    - numeric-only entries get the ``I0`` prefix (so ``2720`` → ``I02720``),
+    - the ``(E0?)XXXX`` placeholder becomes ``E0XXXX``,
+    - everything else is returned trimmed as-is.
+    """
+    s = _cell(raw)
+    if not s:
+        return None
+    if s.startswith("(E0?)"):
+        return "E0" + s[len("(E0?)"):]
+    if s[:1].isdigit():
+        return "I0" + s
+    return s
+
+
 def _accession_to_folder_candidates(accession: str) -> list[str]:
     """Map an accession number to possible photo-folder names.
 
@@ -121,7 +138,9 @@ def _accession_to_folder_candidates(accession: str) -> list[str]:
     """
     if not accession:
         return []
-    m = re.match(r"^I0?(.+)$", accession.strip(), flags=re.IGNORECASE)
+    # Strip a leading I0 (Mantegazza Italian catalog) or E0 (alternative
+    # series) before computing folder-name candidates.
+    m = re.match(r"^[IE]0?(.+)$", accession.strip(), flags=re.IGNORECASE)
     core = m.group(1) if m else accession.strip()
     candidates = [core.replace("/", "-"), core.replace("/", "_"), core]
     seen = set()
@@ -334,11 +353,17 @@ def import_firenze(
     for row_idx, row in enumerate(rows):
         try:
             seq_raw = _cell(row["sequence_number"])
-            if not seq_raw:
+            accession = _normalise_accession(row["accession_number"])
+            # Prefer the museum accession number as the user-facing sequence
+            # (e.g. "I02650"), falling back to FM_<excel-seq> if the row has
+            # no accession on record.
+            if accession:
+                seq = accession
+            elif seq_raw:
+                seq = f"{SEQ_PREFIX}_{seq_raw}"
+            else:
                 skipped += 1
                 continue
-            seq = f"{SEQ_PREFIX}_{seq_raw}"
-            accession = _cell(row["accession_number"])
 
             if Artifact.query.filter_by(sequence_number=seq).first():
                 print(f"  = {seq} already exists — skipping")
