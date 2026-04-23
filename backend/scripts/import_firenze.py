@@ -88,17 +88,14 @@ Rules:
 - Translate each field independently. Do not merge fields.
 """
 
-TRANSLATE_TOOL = {
-    "name": "record_translation",
-    "description": "Record the English translations of the provided Italian fields.",
-    "strict": True,
-    "input_schema": {
-        "type": "object",
-        "properties": {f: {"type": "string"} for f in TRANSLATE_FIELDS},
-        "required": TRANSLATE_FIELDS,
-        "additionalProperties": False,
-    },
-}
+def _extract_json(text: str) -> dict:
+    """Parse the JSON object from a model response, tolerating ```json fences."""
+    s = text.strip()
+    if s.startswith("```"):
+        s = s.strip("`")
+        if s.lower().startswith("json"):
+            s = s[4:].lstrip("\n").lstrip()
+    return json.loads(s)
 
 
 def _cell(val):
@@ -153,32 +150,46 @@ def _load_rows(xlsx_path: str) -> list[dict]:
     return out
 
 
-def _translate(client, model: str, row: dict) -> dict:
-    payload = {
+def _row_payload(row: dict) -> dict:
+    return {
         "object_type": _cell(row["object_type"]),
         "material": _cell(row["material"]),
         "remarks": _cell(row["remarks"]),
         "technique": _cell(row["technique"]),
         "description_catalogue": _cell(row["description_catalogue"]),
         "description_observation": "\n".join(
-            filter(None, [_cell(row["description_card"]), _cell(row["description_further"])])
+            filter(
+                None,
+                [_cell(row["description_card"]), _cell(row["description_further"])],
+            )
         )
         or None,
         "acquisition_details": _cell(row["acquisition_details"]),
     }
-    if not any(v for v in payload.values()):
-        return {k: None for k in TRANSLATE_FIELDS}
 
+
+def _translate_batch(client, model: str, payloads: list[dict]) -> list[dict]:
+    """Translate a batch of rows in one API call.
+
+    payloads[i] is the Italian-fields dict for row i. Returns a list the same
+    length with the English-fields dict. Any row whose translation failed is
+    filled with the raw Italian values so the artifact can still be saved.
+    """
+    items = [{"id": i, **p} for i, p in enumerate(payloads)]
     user_text = (
-        "Translate the following fields from Italian into English. "
-        "Return an empty string for any field whose input is null or empty.\n\n"
-        + json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+        "Translate the following Italian museum catalog entries to English.\n"
+        "Return ONLY a JSON object with a single key \"translations\" whose "
+        "value is an array. Each element must be an object with these keys: "
+        f"id (integer, from the input), {', '.join(TRANSLATE_FIELDS)}. Each "
+        "translation value must be a string (empty string if input is null). "
+        "Preserve the order and the id values. No preamble, no markdown, no "
+        "code fences — just the JSON object.\n\n"
+        "Italian input:\n" + json.dumps(items, ensure_ascii=False, indent=2)
     )
 
     response = client.messages.create(
         model=model,
-        max_tokens=2048,
-        output_config={"effort": "low"},
+        max_tokens=16000,
         system=[
             {
                 "type": "text",
@@ -186,22 +197,58 @@ def _translate(client, model: str, row: dict) -> dict:
                 "cache_control": {"type": "ephemeral"},
             }
         ],
-        tools=[TRANSLATE_TOOL],
-        tool_choice={"type": "tool", "name": "record_translation"},
         messages=[{"role": "user", "content": user_text}],
     )
+    text = next((b.text for b in response.content if b.type == "text"), "")
+    try:
+        parsed = _extract_json(text)
+    except Exception as e:
+        print(f"    !! JSON parse failed ({e}); raw: {text[:300]!r}")
+        return [{k: payloads[i].get(k) for k in TRANSLATE_FIELDS} for i in range(len(payloads))]
 
-    for block in response.content:
-        if block.type == "tool_use" and block.name == "record_translation":
-            out = dict(block.input)
-            return {
-                k: (v.strip() if isinstance(v, str) and v.strip() else None)
-                for k, v in out.items()
+    translations = parsed.get("translations") or []
+    by_id: dict[int, dict] = {}
+    for entry in translations:
+        if isinstance(entry, dict) and "id" in entry:
+            by_id[int(entry["id"])] = entry
+
+    out: list[dict] = []
+    for i, p in enumerate(payloads):
+        t = by_id.get(i, {})
+        out.append(
+            {
+                k: (t[k].strip() if isinstance(t.get(k), str) and t[k].strip() else None)
+                for k in TRANSLATE_FIELDS
             }
-    return {k: None for k in TRANSLATE_FIELDS}
+        )
+    return out
 
 
-def _list_dropbox(dbx_service, path: str):
+def _list_dropbox(dbx_service, path: str, local_root: str | None = None):
+    """List a folder. If ``local_root`` is given, read from the local filesystem
+    (mirror of the Dropbox tree); otherwise go through ``dbx_service``.
+
+    ``path`` is always the Dropbox-style path that will end up in the Media
+    record's ``dropbox_path``. When ``local_root`` is used, we strip the
+    Dropbox prefix and join with ``local_root``.
+    """
+
+    class _Entry:
+        def __init__(self, name):
+            self.name = name
+
+    if local_root:
+        parts = path.lstrip("/").split("/")
+        # The Dropbox path starts with "NILGIRI 2025/FIRENZE/FOTO-...".
+        # local_root points at whichever segment the caller mirrored on disk.
+        # Try successive suffixes until one exists — tolerates mirrors rooted
+        # anywhere along the Dropbox tree.
+        for depth in range(len(parts)):
+            candidate = os.path.join(local_root, *parts[depth:])
+            if os.path.isdir(candidate):
+                return [_Entry(n) for n in os.listdir(candidate)]
+        return []
+
     try:
         return dbx_service.list_folder(path)
     except Exception:
@@ -231,18 +278,30 @@ def import_firenze(
         import anthropic  # imported lazily so --no-translate does not require the SDK
 
         client = anthropic.Anthropic()
-    model = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-7")
+    # Default to Haiku 4.5: translation is a simple, high-volume task (~86 rows).
+    # Override with ANTHROPIC_MODEL if the caller wants Opus/Sonnet.
+    model = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5")
 
     rows = _load_rows(xlsx_path)
     print(f"Loaded {len(rows)} rows from {xlsx_path}")
 
-    dropbox = None if skip_media else DropboxService()
+    dropbox = None
+    local_root = None
+    if not skip_media:
+        # FIRENZE_LOCAL_ROOT wins: skip the DropboxService entirely and read
+        # folder listings straight from the local mirror. This lets us run the
+        # import from a laptop where the Dropbox API tokens are not configured,
+        # while still writing Dropbox-style paths into the DB that production
+        # will resolve via the Dropbox API.
+        local_root = os.environ.get("FIRENZE_LOCAL_ROOT")
+        if not local_root:
+            dropbox = DropboxService()
     photos_base = f"{dropbox_subdir}/{dropbox_photos_subpath}".replace("//", "/")
 
     # Cache the top-level folder listing once for fuzzy (starts-with) matching.
     all_folders: list[str] = []
-    if dropbox:
-        for e in _list_dropbox(dropbox, photos_base):
+    if dropbox or local_root:
+        for e in _list_dropbox(dropbox, photos_base, local_root):
             name = getattr(e, "name", None)
             if name:
                 all_folders.append(name)
@@ -251,7 +310,28 @@ def import_firenze(
     imported = skipped = media_linked = 0
     errors: list[str] = []
 
-    for row in rows:
+    # Pre-translate all rows in chunks to minimise API round-trips and stay
+    # under per-minute rate limits.
+    if translate:
+        payloads = [_row_payload(r) for r in rows]
+        chunk_size = int(os.environ.get("FIRENZE_CHUNK", "20"))
+        translations_by_row_idx: dict[int, dict] = {}
+        for start in range(0, len(payloads), chunk_size):
+            chunk = payloads[start : start + chunk_size]
+            print(
+                f"… translating rows {start + 1}-{start + len(chunk)}/"
+                f"{len(payloads)} via {model}"
+            )
+            batch_out = _translate_batch(client, model, chunk)
+            for j, t in enumerate(batch_out):
+                translations_by_row_idx[start + j] = t
+    else:
+        translations_by_row_idx = {
+            i: {k: _row_payload(r).get(k) for k in TRANSLATE_FIELDS}
+            for i, r in enumerate(rows)
+        }
+
+    for row_idx, row in enumerate(rows):
         try:
             seq_raw = _cell(row["sequence_number"])
             if not seq_raw:
@@ -265,27 +345,7 @@ def import_firenze(
                 skipped += 1
                 continue
 
-            if translate:
-                translated = _translate(client, model, row)
-            else:
-                translated = {
-                    "object_type": _cell(row["object_type"]),
-                    "material": _cell(row["material"]),
-                    "remarks": _cell(row["remarks"]),
-                    "technique": _cell(row["technique"]),
-                    "description_catalogue": _cell(row["description_catalogue"]),
-                    "description_observation": "\n".join(
-                        filter(
-                            None,
-                            [
-                                _cell(row["description_card"]),
-                                _cell(row["description_further"]),
-                            ],
-                        )
-                    )
-                    or None,
-                    "acquisition_details": _cell(row["acquisition_details"]),
-                }
+            translated = translations_by_row_idx[row_idx]
 
             artifact = Artifact(
                 collection=COLLECTION,
@@ -314,7 +374,7 @@ def import_firenze(
             imported += 1
             print(f"+ {seq} ({accession}) — {translated.get('object_type') or ''}")
 
-            if skip_media or not dropbox or not accession:
+            if skip_media or not (dropbox or local_root) or not accession:
                 continue
 
             cand_list = _accession_to_folder_candidates(accession)
@@ -329,7 +389,7 @@ def import_firenze(
 
             for cand in cand_list:
                 folder_path = f"{photos_base}/{cand}"
-                entries = _list_dropbox(dropbox, folder_path)
+                entries = _list_dropbox(dropbox, folder_path, local_root)
                 images = [
                     e
                     for e in entries
