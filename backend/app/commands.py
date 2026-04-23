@@ -112,6 +112,30 @@ def db_stats_command():
             click.echo(f"  - {a.sequence_number}: {a.object_type or 'Unknown'}")
 
 
+@click.command('import-firenze')
+@click.option('--excel', required=True, type=click.Path(exists=True), help='Path to the Mantegazza Excel')
+@click.option('--dropbox-subdir', default='/NILGIRI 2025/FIRENZE')
+@click.option('--photos-subpath', default='FOTO-INVENTARIATE_aprile-settembre-2022')
+@click.option('--dry-run', is_flag=True)
+@click.option('--no-translate', is_flag=True, help='Skip IT->EN translation (keeps raw Italian)')
+@click.option('--skip-media', is_flag=True)
+@with_appcontext
+def import_firenze_command(excel, dropbox_subdir, photos_subpath, dry_run, no_translate, skip_media):
+    """Import the Museo di Firenze (Mantegazza ethnographic collection)."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'scripts'))
+    from import_firenze import import_firenze as do_import
+
+    do_import(
+        xlsx_path=excel,
+        dropbox_subdir=dropbox_subdir,
+        dropbox_photos_subpath=photos_subpath,
+        dry_run=dry_run,
+        translate=not no_translate,
+        skip_media=skip_media,
+    )
+
+
 def register_commands(app):
     """Register CLI commands with the app."""
     app.cli.add_command(init_db_command)
@@ -119,3 +143,4 @@ def register_commands(app):
     app.cli.add_command(import_excel_command)
     app.cli.add_command(link_images_command)
     app.cli.add_command(db_stats_command)
+    app.cli.add_command(import_firenze_command)
